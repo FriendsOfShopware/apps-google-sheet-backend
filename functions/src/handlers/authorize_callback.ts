@@ -1,10 +1,15 @@
 import { region } from "firebase-functions";
-
 import * as admin from 'firebase-admin';
+import {validateRequest} from '../security';
+import {getShopId} from '../utils';
 
 let ref = admin.firestore().collection('shops');
 
 export default region('us-central1').https.onRequest(async (request, response) => {
+    if (!(await validateRequest(request, response))) {
+        return;
+    }
+
     if (request.query.shop === undefined) {
         response.send('Invalid Request');
         return;
@@ -24,13 +29,3 @@ export default region('us-central1').https.onRequest(async (request, response) =
 
     response.send({success: true});
 });
-
-let getShopId = async (url: string) : Promise<string|null> => {
-    let record = await ref.where('shopUrl', '==', url).get();
-
-    if (record.empty) {
-        return null;
-    }
-
-    return record.docs[0].id;
-};

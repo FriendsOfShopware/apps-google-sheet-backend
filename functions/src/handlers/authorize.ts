@@ -1,12 +1,8 @@
-const crypto = require('crypto');
 import { region } from "firebase-functions";
 
 import * as admin from 'firebase-admin';
-admin.initializeApp();
-
-const appName = 'FroshGoogleSheet';
-const appSecret = 'frosh';
-
+import {randomString, getShopId, generateHmac} from '../utils';
+import {APP_NAME, APP_SECRET} from '../consts';
 
 let ref = admin.firestore().collection('shops');
 
@@ -16,10 +12,13 @@ export default region('us-central1').https.onRequest(async (request, response) =
         return;
     }
 
-    let shopDocumentId = await isShopRegisteded(request.query.shop.toString());
+    const shopUrl = request.query.shop.toString();
+
+    let shopDocumentId = await getShopId(shopUrl);
 
     let data = {
-        shopUrl: request.query.shop
+        shopUrl: shopUrl,
+        appSecret: randomString()
     };
 
     if (shopDocumentId) {
@@ -28,27 +27,9 @@ export default region('us-central1').https.onRequest(async (request, response) =
         await ref.add(data);
     }
 
-    let hmac = generateHmac(request.query.shop.toString());
-
     response.send(JSON.stringify({
-        proof: hmac,
-        secret: appSecret,
-        confirmation_url: 'https://sheet.apps.friendsofshopware.com/api/v1/auth_callback?shop=' + request.query.shop.toString()
+        proof: generateHmac(shopUrl + APP_NAME, APP_SECRET),
+        secret: data.appSecret,
+        confirmation_url: 'https://sheet.fos.gg/api/v1/auth_callback?url=' + shopUrl
     }));
 });
-
-let isShopRegisteded = async (url: string) : Promise<string|null> => {
-    let record = await ref.where('shopUrl', '==', url).get();
-
-    if (record.empty) {
-        return null;
-    }
-
-    return record.docs[0].id;
-};
-
-let generateHmac = (url: string) => {
-    return crypto.createHmac('sha256', appSecret)
-        .update(url + appName)
-        .digest('hex');
-}
