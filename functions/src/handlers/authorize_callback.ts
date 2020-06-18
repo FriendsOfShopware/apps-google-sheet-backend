@@ -10,12 +10,12 @@ export default region('us-central1').https.onRequest(async (request, response) =
         return;
     }
 
-    if (request.query.shop === undefined) {
+    if (request.body['shopId'] === undefined) {
         response.send('Invalid Request');
         return;
     }
 
-    let id = await getShopId(request.query.shop.toString());
+    let id = await getShopId(request.body['shopId'].toString());
 
     if (id === null) {
         response.send('Invalid Requested Shop');

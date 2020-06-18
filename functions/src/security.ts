@@ -7,23 +7,21 @@ const ref = firestore().collection('shops');
 
 export async function validateRequest(request: https.Request, response: Response): Promise<boolean>
 {
-    if (request.body.hmac === undefined) {
+    if (request.headers['shopware-shop-signature'] === undefined) {
         response.status(401);
         response.send(JSON.stringify({success: false, message: 'Request does not contains a hmac'}));
         return false;
     }
 
-    let url = getShopUrlFromRequest(request);
+    let shopId = getShopIdFromRequest(request);
 
-    if (url === null) {
+    if (shopId === null) {
         response.status(401);
         response.send(JSON.stringify({success: false, message: 'Cannot find any shop signature in the request'}));
         return false;
     }
 
-    console.time();
-    let data = await getShopData(url);
-    console.timeEnd();
+    let data = await getShopData(shopId);
 
     if (data === null) {
         response.status(401);
@@ -31,10 +29,7 @@ export async function validateRequest(request: https.Request, response: Response
         return false;
     }
 
-    const body = Object.assign({}, request.body);
-    delete body.hmac;
-
-    if (request.body.hmac !== generateHmac(JSON.stringify(body), data.appSecret)) {
+    if (request.headers['shopware-shop-signature'] !== generateHmac(request.rawBody.toString(), data.appSecret)) {
         response.status(401);
         response.send(JSON.stringify({success: false, message: 'Invalid hmac given'}));
 
@@ -44,22 +39,22 @@ export async function validateRequest(request: https.Request, response: Response
     return true;
 }
 
-function getShopUrlFromRequest(request: https.Request) : string | null
+function getShopIdFromRequest(request: https.Request) : string | null
 {
-    if (request.query.url !== undefined) {
-        return request.query.url.toString();
+    if (request.body['shopId'] !== undefined) {
+        return request.body['shopId'].toString();
     }
 
-    if (request.body.source !== undefined && request.body.source.url !== undefined) {
-        return request.body.source.url.toString();
+    if (request.body.source !== undefined && request.body.source.shopId !== undefined) {
+        return request.body.source.shopId.toString();
     }
 
     return null;
 }
 
-async function getShopData(shopUrl: string): Promise<any|null>
+async function getShopData(shopId: string): Promise<any|null>
 {
-    let record = await ref.where('shopUrl', '==', shopUrl).get();
+    let record = await ref.where('shopwareShopId', '==', shopId).get();
 
     if (record.empty) {
         return null;

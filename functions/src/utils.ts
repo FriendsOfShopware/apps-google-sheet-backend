@@ -16,9 +16,9 @@ export function generateHmac(content : string, secret: string): string
 }
 
 
-export async function getShopId(shopUrl : string): Promise<string|null>
+export async function getShopId(shopwareShopId : string): Promise<string|null>
 {
-    let record = await getShopRef().where('shopUrl', '==', shopUrl).get();
+    let record = await getShopRef().where('shopwareShopId', '==', shopwareShopId).get();
 
     if (record.empty) {
         return null;
